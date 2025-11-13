@@ -254,7 +254,6 @@ function obtenerPalabrasPorUnidades(idsUnidades) {
 
         if (palabraOriginal.includes(' ')) return;
         if (palabraOriginal.length < 3 || palabraOriginal.length > 12) return;
-        if (palabraOriginal === palabraOriginal.toUpperCase() && palabraOriginal.length > 1) return;
 
         const clave = palabraOriginal.toLowerCase();
         if (!palabrasUnicas.has(clave)) {
