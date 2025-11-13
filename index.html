@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Crucigramas</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Generador de Crucigramas</h1>
+            <div class="controls">
+                <button id="generar-btn">Generar Crucigrama (U5)</button>
+                <button id="verificar-btn">Verificar Respuestas</button>
+                <button id="limpiar-btn">Limpiar</button>
+            </div>
+        </header>
+
+        <main>
+            <div id="game-area">
+                <div id="grid-container"></div>
+                
+                <div id="pistas-container">
+                    <div class="pistas-section">
+                        <h3>Horizontales</h3>
+                        <ol id="pistas-horizontales"></ol>
+                    </div>
+                    <div class="pistas-section">
+                        <h3>Verticales</h3>
+                        <ol id="pistas-verticales"></ol>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
