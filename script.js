@@ -426,32 +426,6 @@ function dibujarPistas(palabrasColocadas) {
 }
 
 /**
- * Verifica las respuestas del usuario
- */
-function verificarRespuestas() {
-    const inputs = document.querySelectorAll('.grid-cell input');
-    let correctas = 0;
-    let total = inputs.length;
-    
-    inputs.forEach(input => {
-        const celda = input.parentElement;
-        const respuestaCorrecta = input.dataset.respuesta;
-        const respuestaUsuario = input.value.toUpperCase();
-        
-        celda.classList.remove('correct', 'incorrect');
-        
-        if (respuestaUsuario === respuestaCorrecta) {
-            celda.classList.add('correct');
-            correctas++;
-        } else if (respuestaUsuario) {
-            celda.classList.add('incorrect');
-        }
-    });
-    
-    alert(`¡Has acertado ${correctas} de ${total} letras! (${Math.round(correctas/total*100)}%)`);
-}
-
-/**
  * Limpia el grid
  */
 function limpiarGrid() {
@@ -462,20 +436,217 @@ function limpiarGrid() {
     });
 }
 
-// Event Listeners
+/**
+ * Crea efecto de confeti para celebrar
+ */
+function crearConfeti(elemento) {
+    const rect = elemento.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    const colors = ['#667eea', '#764ba2', '#10b981', '#f093fb', '#f5576c'];
+
+    for (let i = 0; i < 12; i++) {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = centerX + 'px';
+        confetti.style.top = centerY + 'px';
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+
+        const angle = (Math.PI * 2 * i) / 12;
+        const velocity = 50 + Math.random() * 50;
+        const tx = Math.cos(angle) * velocity;
+        const ty = Math.sin(angle) * velocity - 100;
+
+        confetti.style.setProperty('--tx', tx + 'px');
+        confetti.style.setProperty('--ty', ty + 'px');
+
+        document.body.appendChild(confetti);
+
+        setTimeout(() => confetti.remove(), 1000);
+    }
+}
+
+/**
+ * Verifica si una palabra completa está correcta
+ */
+function verificarPalabraCompleta(palabraInfo) {
+    const { palabra, x, y, orientacion } = palabraInfo;
+    const dx = orientacion === 'horizontal' ? 1 : 0;
+    const dy = orientacion === 'vertical' ? 1 : 0;
+
+    let todasCorrectas = true;
+    const celdas = [];
+
+    for (let i = 0; i < palabra.length; i++) {
+        const currentX = x + dx * i;
+        const currentY = y + dy * i;
+        const celda = document.querySelector(`.grid-cell[data-x="${currentX}"][data-y="${currentY}"]`);
+        const input = celda?.querySelector('input');
+
+        if (!input || input.value.toUpperCase() !== palabra[i]) {
+            todasCorrectas = false;
+            break;
+        }
+        celdas.push(celda);
+    }
+
+    return { todasCorrectas, celdas };
+}
+
+/**
+ * Anima una palabra completada correctamente
+ */
+function animarPalabraCorrecta(celdas) {
+    celdas.forEach((celda, index) => {
+        setTimeout(() => {
+            celda.style.animation = 'none';
+            setTimeout(() => {
+                celda.style.animation = '';
+                celda.classList.add('correct');
+
+                // Confeti solo en la primera y última letra
+                if (index === 0 || index === celdas.length - 1) {
+                    crearConfeti(celda);
+                }
+            }, 10);
+        }, index * 80);
+    });
+
+    // Sonido de éxito (puedes añadir un audio)
+    setTimeout(() => {
+        const gridContainer = document.getElementById('grid-container');
+        gridContainer.classList.add('success-animation');
+        setTimeout(() => gridContainer.classList.remove('success-animation'), 800);
+    }, celdas.length * 80);
+}
+
+/**
+ * Verifica las respuestas del usuario con animaciones mejoradas
+ */
+function verificarRespuestas() {
+    if (!crucigramaActual) {
+        alert('Primero genera un crucigrama');
+        return;
+    }
+
+    const inputs = document.querySelectorAll('.grid-cell input');
+    let correctas = 0;
+    let total = inputs.length;
+    let palabrasCompletasCorrectas = 0;
+
+    // Limpiar clases anteriores
+    inputs.forEach(input => {
+        input.parentElement.classList.remove('correct', 'incorrect');
+    });
+
+    // Verificar cada letra primero
+    inputs.forEach(input => {
+        const celda = input.parentElement;
+        const respuestaCorrecta = input.dataset.respuesta;
+        const respuestaUsuario = input.value.toUpperCase();
+
+        if (respuestaUsuario === respuestaCorrecta) {
+            correctas++;
+        } else if (respuestaUsuario) {
+            celda.classList.add('incorrect');
+        }
+    });
+
+    // Verificar palabras completas
+    crucigramaActual.palabrasColocadas.forEach((palabraInfo, index) => {
+        setTimeout(() => {
+            const { todasCorrectas, celdas } = verificarPalabraCompleta(palabraInfo);
+            if (todasCorrectas) {
+                palabrasCompletasCorrectas++;
+                animarPalabraCorrecta(celdas);
+            }
+        }, index * 100);
+    });
+
+    // Mostrar resultados con delay para que se vean las animaciones
+    setTimeout(() => {
+        const porcentaje = Math.round((correctas / total) * 100);
+        const mensaje = porcentaje === 100
+            ? `🎉 ¡PERFECTO! Has completado el crucigrama correctamente.\n${palabrasCompletasCorrectas} palabras de ${crucigramaActual.palabrasColocadas.length}`
+            : `Has acertado ${correctas} de ${total} letras (${porcentaje}%)\n${palabrasCompletasCorrectas} palabras completas de ${crucigramaActual.palabrasColocadas.length}`;
+
+        alert(mensaje);
+
+        if (porcentaje === 100) {
+            celebrarVictoria();
+        }
+    }, crucigramaActual.palabrasColocadas.length * 100 + 500);
+}
+
+/**
+ * Celebración especial cuando se completa todo el crucigrama
+ */
+function celebrarVictoria() {
+    const container = document.querySelector('.container');
+    container.style.animation = 'none';
+    setTimeout(() => {
+        container.style.animation = '';
+
+        // Confeti masivo
+        for (let i = 0; i < 50; i++) {
+            setTimeout(() => {
+                const x = Math.random() * window.innerWidth;
+                const y = Math.random() * window.innerHeight;
+                const fakeElement = document.createElement('div');
+                fakeElement.style.position = 'fixed';
+                fakeElement.style.left = x + 'px';
+                fakeElement.style.top = y + 'px';
+                document.body.appendChild(fakeElement);
+                crearConfeti(fakeElement);
+                setTimeout(() => fakeElement.remove(), 100);
+            }, i * 30);
+        }
+    }, 10);
+}
+
+/**
+ * Verifica automáticamente mientras el usuario escribe
+ */
+function configurarVerificacionAutomatica() {
+    const container = document.getElementById('grid-container');
+    container.addEventListener('input', (e) => {
+        if (e.target.tagName === 'INPUT' && crucigramaActual) {
+            const input = e.target;
+            const celda = input.parentElement;
+            const x = parseInt(celda.dataset.x);
+            const y = parseInt(celda.dataset.y);
+
+            // Verificar si esta letra completa alguna palabra
+            setTimeout(() => {
+                crucigramaActual.palabrasColocadas.forEach(palabraInfo => {
+                    const { todasCorrectas, celdas } = verificarPalabraCompleta(palabraInfo);
+                    if (todasCorrectas && !celdas[0].classList.contains('correct')) {
+                        animarPalabraCorrecta(celdas);
+                    }
+                });
+            }, 100);
+        }
+    });
+}
+
+// Actualizar el event listener de generar para incluir verificación automática
+const generarBtn = document.getElementById('generar-btn');
+const oldListener = generarBtn.onclick;
 document.getElementById('generar-btn').addEventListener('click', () => {
     const palabras = obtenerPalabrasPorUnidad('U5');
     console.log(`Palabras disponibles para U5: ${palabras.length}`);
-    
+
     if (palabras.length === 0) {
         alert('No se encontraron palabras para la Unidad 5.');
         return;
     }
-    
+
     crucigramaActual = generarCrucigrama(palabras, 10);
-    
+
     if (crucigramaActual) {
         dibujarGrid(crucigramaActual.grid, crucigramaActual.palabrasColocadas);
+        configurarVerificacionAutomatica();
     }
 });
 
