@@ -4,6 +4,9 @@ let baseDeDatosPalabras = [];
 // Variable global para almacenar el crucigrama generado
 let crucigramaActual = null;
 
+// Estado global para controlar la orientación de escritura actual
+let estadoEntrada = { palabraIndex: null, orientacion: null };
+
 // Constantes del grid
 const GRID_SIZE = 20;
 const MAX_INTENTOS = 100;
@@ -292,6 +295,29 @@ function generarCrucigrama(palabrasDisponibles, numPalabras) {
 function dibujarGrid(grid, palabrasColocadas) {
     const container = document.getElementById('grid-container');
     container.innerHTML = '';
+
+    // Resetear el estado de escritura actual al redibujar el grid
+    estadoEntrada = { palabraIndex: null, orientacion: null };
+
+    // Crear un mapa de celdas y las palabras a las que pertenecen
+    const cellWordsMap = new Map();
+    palabrasColocadas.forEach((palabraInfo, palabraIndex) => {
+        const dx = palabraInfo.orientacion === 'horizontal' ? 1 : 0;
+        const dy = palabraInfo.orientacion === 'vertical' ? 1 : 0;
+        for (let i = 0; i < palabraInfo.palabra.length; i++) {
+            const cellX = palabraInfo.x + dx * i;
+            const cellY = palabraInfo.y + dy * i;
+            const key = `${cellX},${cellY}`;
+            if (!cellWordsMap.has(key)) {
+                cellWordsMap.set(key, []);
+            }
+            cellWordsMap.get(key).push({
+                palabraIndex,
+                orientacion: palabraInfo.orientacion,
+                letraIndex: i
+            });
+        }
+    });
     
     // Encontrar los límites del grid usado
     let minX = GRID_SIZE, maxX = 0, minY = GRID_SIZE, maxY = 0;
@@ -354,28 +380,29 @@ function dibujarGrid(grid, palabrasColocadas) {
                 input.type = 'text';
                 input.maxLength = 1;
                 input.dataset.respuesta = celda;
-                
+                const key = `${x},${y}`;
+                input.dataset.words = JSON.stringify(cellWordsMap.get(key) || []);
+
                 // Navegación con teclado
+                input.addEventListener('focus', (e) => {
+                    seleccionarPalabraDesdeInput(e.target);
+                });
+
                 input.addEventListener('input', (e) => {
                     e.target.value = e.target.value.toUpperCase();
-                    // Mover al siguiente input
-                    const inputs = Array.from(container.querySelectorAll('input'));
-                    const currentIndex = inputs.indexOf(e.target);
-                    if (currentIndex < inputs.length - 1 && e.target.value) {
-                        inputs[currentIndex + 1].focus();
+                    seleccionarPalabraDesdeInput(e.target);
+                    if (e.target.value) {
+                        moverEnPalabra(e.target, 1);
                     }
                 });
-                
+
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Backspace' && !e.target.value) {
-                        const inputs = Array.from(container.querySelectorAll('input'));
-                        const currentIndex = inputs.indexOf(e.target);
-                        if (currentIndex > 0) {
-                            inputs[currentIndex - 1].focus();
-                        }
+                        seleccionarPalabraDesdeInput(e.target);
+                        moverEnPalabra(e.target, -1);
                     }
                 });
-                
+
                 div.appendChild(input);
                 
                 // Añadir número si es el inicio de una palabra
@@ -396,6 +423,72 @@ function dibujarGrid(grid, palabrasColocadas) {
     
     // Dibujar las pistas
     dibujarPistas(palabrasColocadas);
+}
+
+/**
+ * Determina la palabra activa basada en el input seleccionado.
+ * @param {HTMLInputElement} input - Input que está activo.
+ * @param {string|null} orientacionPreferida - Orientación a priorizar.
+ */
+function seleccionarPalabraDesdeInput(input, orientacionPreferida = null) {
+    const data = input.dataset.words ? JSON.parse(input.dataset.words) : [];
+    if (!data.length) {
+        estadoEntrada = { palabraIndex: null, orientacion: null };
+        return;
+    }
+
+    let seleccion = null;
+
+    if (orientacionPreferida) {
+        seleccion = data.find(item => item.orientacion === orientacionPreferida) || null;
+    }
+
+    if (!seleccion && estadoEntrada.palabraIndex !== null) {
+        seleccion = data.find(item => item.palabraIndex === estadoEntrada.palabraIndex) || null;
+    }
+
+    if (!seleccion) {
+        seleccion = data[0];
+    }
+
+    estadoEntrada = {
+        palabraIndex: seleccion.palabraIndex,
+        orientacion: seleccion.orientacion
+    };
+}
+
+/**
+ * Mueve el foco dentro de la palabra activa siguiendo su orientación.
+ * @param {HTMLInputElement} input - Input de referencia.
+ * @param {number} paso - Dirección del movimiento (1 siguiente, -1 anterior).
+ */
+function moverEnPalabra(input, paso) {
+    if (!crucigramaActual) return;
+
+    const { palabraIndex, orientacion } = estadoEntrada;
+    if (palabraIndex === null || orientacion === null) return;
+
+    const palabraInfo = crucigramaActual.palabrasColocadas[palabraIndex];
+    if (!palabraInfo) return;
+
+    const data = input.dataset.words ? JSON.parse(input.dataset.words) : [];
+    const datosCelda = data.find(item => item.palabraIndex === palabraIndex);
+    if (!datosCelda) return;
+
+    const nuevaPosicion = datosCelda.letraIndex + paso;
+    if (nuevaPosicion < 0 || nuevaPosicion >= palabraInfo.palabra.length) return;
+
+    const dx = orientacion === 'horizontal' ? 1 : 0;
+    const dy = orientacion === 'vertical' ? 1 : 0;
+    const nextX = palabraInfo.x + dx * nuevaPosicion;
+    const nextY = palabraInfo.y + dy * nuevaPosicion;
+    const container = document.getElementById('grid-container');
+    const siguienteInput = container.querySelector(`.grid-cell[data-x="${nextX}"][data-y="${nextY}"] input`);
+
+    if (siguienteInput) {
+        siguienteInput.focus();
+        seleccionarPalabraDesdeInput(siguienteInput, orientacion);
+    }
 }
 
 /**
