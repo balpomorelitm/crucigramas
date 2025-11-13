@@ -11,7 +11,21 @@
         <header>
             <h1>Generador de Crucigramas</h1>
             <div class="controls">
-                <button id="generar-btn">Generar Crucigrama (U5)</button>
+                <div class="unit-selector">
+                    <button id="unit-selector-btn" type="button" aria-haspopup="true" aria-expanded="false">
+                        Seleccionar unidades
+                    </button>
+                    <div id="unit-tooltip" class="unit-tooltip" role="dialog" aria-modal="false" tabindex="-1">
+                        <p class="unit-tooltip__title">Elige las unidades léxicas que quieres practicar:</p>
+                        <div id="unit-checkboxes" class="unit-checkboxes"></div>
+                        <div class="unit-tooltip__actions">
+                            <button id="apply-units" type="button" class="primary-action">Aplicar selección</button>
+                            <button id="select-all-units" type="button">Seleccionar todas</button>
+                        </div>
+                        <p class="unit-tooltip__hint">Puedes combinar unidades de Aula 1 y Aula 2.</p>
+                    </div>
+                </div>
+                <button id="generar-btn">Generar Crucigrama</button>
                 <button id="verificar-btn">Verificar Respuestas</button>
                 <button id="limpiar-btn">Limpiar</button>
             </div>
