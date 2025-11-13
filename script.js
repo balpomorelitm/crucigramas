@@ -8,10 +8,38 @@ let crucigramaActual = null;
 const GRID_SIZE = 20;
 const MAX_INTENTOS = 100;
 
+const UNIDADES_LEXICAS = [
+    { id: 'U0', nombre: 'En el aula', libro: 'Aula 1 · Libro 1', prefijos: ['U0 #'] },
+    { id: 'U1', nombre: 'Nosotros y nosotras', libro: 'Aula 1 · Libro 1', prefijos: ['U1 #'] },
+    { id: 'U2', nombre: 'Quiero aprender español', libro: 'Aula 1 · Libro 1', prefijos: ['U2 #'] },
+    { id: 'U3', nombre: '¿Dónde está Santiago?', libro: 'Aula 1 · Libro 1', prefijos: ['U3 #'] },
+    { id: 'U4', nombre: '¿Cuál prefieres?', libro: 'Aula 1 · Libro 1', prefijos: ['U4 #'] },
+    { id: 'U5', nombre: 'Tus amigos son mis amigos', libro: 'Aula 1 · Libro 1', prefijos: ['U5 #'] },
+    { id: 'U6', nombre: 'Día a día', libro: 'Aula 1 · Libro 1', prefijos: ['U6 #'] },
+    { id: 'U7', nombre: 'A comer', libro: 'Aula 1 · Libro 1', prefijos: ['U7 #'] },
+    { id: 'U8', nombre: 'El barrio ideal', libro: 'Aula 1 · Libro 1', prefijos: ['U8 #'] },
+    { id: 'U9', nombre: '¿Sabes conducir?', libro: 'Aula 1 · Libro 1', prefijos: ['U9 #'] },
+    { id: 'A2U1', nombre: 'El español y tú', libro: 'Aula 2 · Libro 2', prefijos: ['Aula 2 U1 #'] },
+    { id: 'A2U2', nombre: 'Una vida de película', libro: 'Aula 2 · Libro 2', prefijos: ['Aula 2 U2 #'] },
+    { id: 'A2U4', nombre: 'Hogar dulce hogar', libro: 'Aula 2 · Libro 2', prefijos: ['Aula 2 U4 #'] }
+];
+
+const PREFIJOS_POR_UNIDAD = new Map();
+UNIDADES_LEXICAS.forEach(unidad => {
+    const prefijos = Array.isArray(unidad.prefijos) ? unidad.prefijos : [unidad.prefijos];
+    PREFIJOS_POR_UNIDAD.set(unidad.id, prefijos);
+});
+
+let unidadesSeleccionadas = new Set(['U5']);
+
+let tooltipMostradoInicialmente = false;
+
 /**
  * Carga los datos del JSON al iniciar la página
  */
 window.addEventListener('DOMContentLoaded', async () => {
+    inicializarSelectorUnidades();
+
     try {
         const response = await fetch('palabras.json');
         baseDeDatosPalabras = await response.json();
@@ -22,32 +50,216 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
+function inicializarSelectorUnidades() {
+    renderizarOpcionesUnidades();
+    actualizarResumenUnidades();
+
+    const selectorBtn = document.getElementById('unit-selector-btn');
+    const tooltip = document.getElementById('unit-tooltip');
+    const applyBtn = document.getElementById('apply-units');
+    const selectAllBtn = document.getElementById('select-all-units');
+
+    if (!selectorBtn || !tooltip || !applyBtn || !selectAllBtn) {
+        return;
+    }
+
+    selectorBtn.addEventListener('click', () => toggleTooltip());
+
+    applyBtn.addEventListener('click', () => {
+        const seleccionadas = obtenerUnidadesMarcadas();
+        if (seleccionadas.length === 0) {
+            alert('Selecciona al menos una unidad para jugar.');
+            return;
+        }
+        unidadesSeleccionadas = new Set(seleccionadas);
+        actualizarResumenUnidades();
+        toggleTooltip(false);
+    });
+
+    selectAllBtn.addEventListener('click', () => {
+        obtenerCheckboxesUnidades().forEach(checkbox => {
+            checkbox.checked = true;
+        });
+    });
+
+    document.addEventListener('click', (event) => {
+        if (!tooltip.classList.contains('visible')) return;
+        if (!tooltip.contains(event.target) && event.target !== selectorBtn) {
+            toggleTooltip(false);
+        }
+    });
+
+    tooltip.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            toggleTooltip(false);
+            selectorBtn.focus();
+        }
+    });
+
+    if (!tooltipMostradoInicialmente) {
+        tooltipMostradoInicialmente = true;
+        setTimeout(() => toggleTooltip(true), 400);
+    }
+}
+
+function renderizarOpcionesUnidades() {
+    const container = document.getElementById('unit-checkboxes');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    UNIDADES_LEXICAS.forEach(unidad => {
+        const label = document.createElement('label');
+        label.className = 'unit-option';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = unidad.id;
+        checkbox.checked = unidadesSeleccionadas.has(unidad.id);
+
+        const details = document.createElement('div');
+        details.className = 'unit-option__details';
+
+        const nombre = document.createElement('strong');
+        nombre.textContent = unidad.nombre;
+
+        const libro = document.createElement('span');
+        libro.textContent = unidad.libro;
+
+        details.appendChild(nombre);
+        details.appendChild(libro);
+
+        label.appendChild(checkbox);
+        label.appendChild(details);
+
+        container.appendChild(label);
+    });
+}
+
+function obtenerCheckboxesUnidades() {
+    return Array.from(document.querySelectorAll('#unit-checkboxes input[type="checkbox"]'));
+}
+
+function obtenerUnidadesMarcadas() {
+    return obtenerCheckboxesUnidades()
+        .filter(checkbox => checkbox.checked)
+        .map(checkbox => checkbox.value);
+}
+
+function toggleTooltip(forceState) {
+    const tooltip = document.getElementById('unit-tooltip');
+    const selectorBtn = document.getElementById('unit-selector-btn');
+    if (!tooltip || !selectorBtn) return;
+
+    const shouldShow = typeof forceState === 'boolean'
+        ? forceState
+        : !tooltip.classList.contains('visible');
+
+    if (shouldShow) {
+        sincronizarCheckboxesConSeleccion();
+    }
+
+    tooltip.classList.toggle('visible', shouldShow);
+    selectorBtn.setAttribute('aria-expanded', shouldShow ? 'true' : 'false');
+
+    if (shouldShow) {
+        tooltip.focus({ preventScroll: true });
+    }
+}
+
+function sincronizarCheckboxesConSeleccion() {
+    obtenerCheckboxesUnidades().forEach(checkbox => {
+        checkbox.checked = unidadesSeleccionadas.has(checkbox.value);
+    });
+}
+
+function actualizarResumenUnidades() {
+    const selectorBtn = document.getElementById('unit-selector-btn');
+    const generarBtn = document.getElementById('generar-btn');
+    if (!selectorBtn || !generarBtn) return;
+
+    const ids = Array.from(unidadesSeleccionadas);
+    let textoBoton = 'Seleccionar unidades';
+    let tooltipGenerar = 'Selecciona unidades antes de generar el crucigrama';
+
+    if (ids.length === UNIDADES_LEXICAS.length) {
+        textoBoton = 'Unidades: Todas';
+        tooltipGenerar = 'Generar crucigrama con todas las unidades disponibles';
+    } else if (ids.length === 1) {
+        const unidad = UNIDADES_LEXICAS.find(item => item.id === ids[0]);
+        const nombre = unidad ? unidad.nombre : ids[0];
+        textoBoton = `Unidad: ${nombre}`;
+        tooltipGenerar = `Generar crucigrama con la unidad ${nombre}`;
+    } else if (ids.length > 1 && ids.length <= 3) {
+        const nombres = ids.map(id => {
+            const unidad = UNIDADES_LEXICAS.find(item => item.id === id);
+            return unidad ? unidad.nombre : id;
+        });
+        textoBoton = `Unidades: ${nombres.join(' + ')}`;
+        tooltipGenerar = `Generar crucigrama con ${nombres.join(', ')}`;
+    } else if (ids.length > 3) {
+        textoBoton = `Unidades: ${ids.length} seleccionadas`;
+        tooltipGenerar = `Generar crucigrama con ${ids.length} unidades seleccionadas`;
+    }
+
+    selectorBtn.textContent = textoBoton;
+    selectorBtn.title = tooltipGenerar;
+    generarBtn.title = tooltipGenerar;
+}
+
+function obtenerDescripcionUnidades(ids) {
+    if (!ids || ids.length === 0) return 'las unidades seleccionadas';
+    if (ids.length === 1) {
+        const unidad = UNIDADES_LEXICAS.find(item => item.id === ids[0]);
+        return unidad ? `la unidad «${unidad.nombre}»` : 'la unidad seleccionada';
+    }
+    if (ids.length <= 3) {
+        const nombres = ids.map(id => {
+            const unidad = UNIDADES_LEXICAS.find(item => item.id === id);
+            return unidad ? `«${unidad.nombre}»` : id;
+        });
+        return `las unidades ${nombres.join(', ')}`;
+    }
+    return `las ${ids.length} unidades seleccionadas`;
+}
+
 /**
  * Filtra las palabras por unidad y calidad
- * @param {string} idUnidad - ID de la unidad (ej: "U5")
+ * @param {Array<string>} idsUnidades - IDs de las unidades seleccionadas
  * @returns {Array} - Array de objetos de palabras jugables
  */
-function obtenerPalabrasPorUnidad(idUnidad) {
-    return baseDeDatosPalabras.filter(item => {
-        // Filtrar por unidad
+function obtenerPalabrasPorUnidades(idsUnidades) {
+    if (!Array.isArray(idsUnidades) || idsUnidades.length === 0) {
+        return [];
+    }
+
+    const palabrasUnicas = new Map();
+
+    baseDeDatosPalabras.forEach(item => {
         const lugar = item["Lugar en el libro"] || "";
-        if (!lugar.startsWith(idUnidad + " #")) return false;
-        
-        // Obtener la palabra en español
-        const palabra = item["Unidad Léxica (Español)"] || "";
-        
-        // Verificar que sea jugable:
-        // 1. No debe contener espacios
-        if (palabra.includes(" ")) return false;
-        
-        // 2. Debe tener entre 3 y 12 letras
-        if (palabra.length < 3 || palabra.length > 12) return false;
-        
-        // 3. No debe estar toda en mayúsculas (evitar títulos)
-        if (palabra === palabra.toUpperCase() && palabra.length > 1) return false;
-        
-        return true;
+        if (!lugar) return;
+
+        const perteneceUnidad = idsUnidades.some(id => {
+            const prefijos = PREFIJOS_POR_UNIDAD.get(id) || [];
+            return prefijos.some(prefijo => lugar.startsWith(prefijo));
+        });
+
+        if (!perteneceUnidad) return;
+
+        const palabraOriginal = (item["Unidad Léxica (Español)"] || '').trim();
+        if (!palabraOriginal) return;
+
+        if (palabraOriginal.includes(' ')) return;
+        if (palabraOriginal.length < 3 || palabraOriginal.length > 12) return;
+        if (palabraOriginal === palabraOriginal.toUpperCase() && palabraOriginal.length > 1) return;
+
+        const clave = palabraOriginal.toLowerCase();
+        if (!palabrasUnicas.has(clave)) {
+            palabrasUnicas.set(clave, item);
+        }
     });
+
+    return Array.from(palabrasUnicas.values());
 }
 
 /**
@@ -632,13 +844,23 @@ function configurarVerificacionAutomatica() {
 
 // Actualizar el event listener de generar para incluir verificación automática
 const generarBtn = document.getElementById('generar-btn');
-const oldListener = generarBtn.onclick;
-document.getElementById('generar-btn').addEventListener('click', () => {
-    const palabras = obtenerPalabrasPorUnidad('U5');
-    console.log(`Palabras disponibles para U5: ${palabras.length}`);
+
+generarBtn.addEventListener('click', () => {
+    const unidades = Array.from(unidadesSeleccionadas);
+
+    if (unidades.length === 0) {
+        alert('Selecciona al menos una unidad léxica antes de generar el crucigrama.');
+        toggleTooltip(true);
+        return;
+    }
+
+    const palabras = obtenerPalabrasPorUnidades(unidades);
+    const descripcionUnidades = obtenerDescripcionUnidades(unidades);
+
+    console.log(`Palabras disponibles para ${descripcionUnidades}: ${palabras.length}`);
 
     if (palabras.length === 0) {
-        alert('No se encontraron palabras para la Unidad 5.');
+        alert(`No se encontraron palabras para ${descripcionUnidades}.`);
         return;
     }
 
@@ -647,6 +869,7 @@ document.getElementById('generar-btn').addEventListener('click', () => {
     if (crucigramaActual) {
         dibujarGrid(crucigramaActual.grid, crucigramaActual.palabrasColocadas);
         configurarVerificacionAutomatica();
+        toggleTooltip(false);
     }
 });
 
