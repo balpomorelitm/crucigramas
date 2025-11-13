@@ -591,8 +591,8 @@ function dibujarGrid(grid, palabrasColocadas) {
                 input.type = 'text';
                 input.maxLength = 1;
                 input.dataset.respuesta = celda;
-                const key = `${x},${y}`;
-                input.dataset.words = JSON.stringify(cellWordsMap.get(key) || []);
+                const cellKey = `${x},${y}`;
+                input.dataset.words = JSON.stringify(cellWordsMap.get(cellKey) || []);
 
                 // Navegación con teclado
                 input.addEventListener('focus', (e) => {
@@ -617,11 +617,10 @@ function dibujarGrid(grid, palabrasColocadas) {
                 div.appendChild(input);
                 
                 // Añadir número si es el inicio de una palabra
-                const key = `${x},${y}`;
-                if (numerosMap.has(key)) {
+                if (numerosMap.has(cellKey)) {
                     const numeroDiv = document.createElement('div');
                     numeroDiv.className = 'cell-number';
-                    numeroDiv.textContent = numerosMap.get(key);
+                    numeroDiv.textContent = numerosMap.get(cellKey);
                     div.appendChild(numeroDiv);
                 }
             } else {
